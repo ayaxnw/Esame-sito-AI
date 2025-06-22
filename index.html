@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ASSISTENTE PERSONALE</title>
+  <style>
+    :root {
+      --bg-light: #f9f9f9;
+      --bg-dark: #121212;
+      --text-light: #000;
+      --text-dark: #fff;
+      --card-light: #fff;
+      --card-dark: #1e1e1e;
+      --accent: #007bff;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 1.5rem;
+      background-color: var(--bg-light);
+      color: var(--text-light);
+      transition: all 0.3s ease;
+    }
+
+    body.dark {
+      background-color: var(--bg-dark);
+      color: var(--text-dark);
+    }
+
+    .container {
+      max-width: 800px;
+      margin: auto;
+      padding: 2rem;
+      border-radius: 20px;
+      background-color: var(--card-light);
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    }
+
+    body.dark .container {
+      background-color: var(--card-dark);
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 1.5rem;
+      font-size: 2rem;
+    }
+
+    textarea, select {
+      width: 100%;
+      padding: 0.75rem;
+      margin-bottom: 1rem;
+      font-size: 1rem;
+      border-radius: 12px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      padding: 0.6rem 1rem;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      background-color: var(--accent);
+      color: white;
+      margin: 0.25rem 0.5rem 1rem 0;
+      font-size: 1rem;
+    }
+
+    .response {
+      white-space: pre-wrap;
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 12px;
+      background-color: #f0f0f0;
+    }
+
+    body.dark .response {
+      background-color: #333;
+    }
+
+    .typing {
+      font-style: italic;
+      color: gray;
+      margin-top: 0.5rem;
+    }
+
+    .dot-flashing {
+      margin-left: 5px;
+      display: inline-block;
+      width: 1rem;
+      height: 1rem;
+      border-radius: 50%;
+      background-color: gray;
+      animation: dotFlashing 1s infinite linear alternate;
+    }
+
+    .history-entry {
+      background-color: #e0e0e0;
+      padding: 0.5rem;
+      margin-top: 0.5rem;
+      border-radius: 10px;
+    }
+
+    .bookmark {
+      float: right;
+      font-weight: bold;
+      cursor: pointer;
+      color: gold;
+    }
+
+    @keyframes dotFlashing {
+      0% { opacity: 0.2; }
+      50% { opacity: 1; }
+      100% { opacity: 0.2; }
+    }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 2rem;
+      font-size: 0.9rem;
+      opacity: 0.6;
+    }
+
+    @media (max-width: 600px) {
+      .container { padding: 1rem; }
+      h1 { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ASSISTENTE PERSONALE</h1>
+    <select id="language">
+      <option value="it">🇮🇹 Italiano</option>
+      <option value="en">🇬🇧 English</option>
+      <option value="fr">🇫🇷 Français</option>
+      <option value="es">🇪🇸 Español</option>
+      <option value="de">🇩🇪 Deutsch</option>
+    </select>
+    <button onclick="toggleTheme()">🌓 Tema</button>
+    <textarea id="userInput" placeholder="Scrivi la tua domanda..."></textarea>
+    <div>
+      <button onclick="askAI()">Invia</button>
+      <button onclick="speakLast()">🔊 Leggi</button>
+      <button onclick="clearConversation()">🗑️ Nuova conversazione</button>
+      <button onclick="downloadPDF()">📄 Scarica PDF</button>
+    </div>
+    <div id="typing" class="typing" style="display:none;">Sta scrivendo<span class="dot-flashing"></span></div>
+    <div id="response" class="response"></div>
+
+    <h3>Cronologia</h3>
+    <div id="history"></div>
+
+    <footer>
+      <span>Version 1.0</span>
+      <span>Created by Ayaan Waqas</span>
+    </footer>
+  </div>
+
+  <script>
+    const API_KEY = "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";
+    let lastResponse = "";
+
+    function toggleTheme() {
+      document.body.classList.toggle("dark");
+    }
+
+    function speakLast() {
+      if ('speechSynthesis' in window && lastResponse) {
+        const msg = new SpeechSynthesisUtterance(lastResponse);
+        speechSynthesis.speak(msg);
+      }
+    }
+
+    function askAI() {
+      const input = document.getElementById("userInput").value;
+      const lang = document.getElementById("language").value;
+      const responseBox = document.getElementById("response");
+      const typing = document.getElementById("typing");
+
+      if (!input.trim()) return;
+      responseBox.textContent = "";
+      typing.style.display = "block";
+
+      const prompt = `Rispondi in ${lang}. Domanda: ${input}`;
+
+      fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${API_KEY}`,
+          "HTTP-Referer": "http://localhost",
+          "X-Title": "SitoAI"
+        },
+        body: JSON.stringify({
+          model: "mistralai/mistral-7b-instruct",
+          messages: [{ role: "user", content: prompt }],
+        }),
+      }).then(res => res.json())
+        .then(data => {
+          typing.style.display = "none";
+          if (data.choices && data.choices[0]) {
+            lastResponse = data.choices[0].message.content;
+            responseBox.textContent = lastResponse;
+            saveToHistory(input, lastResponse);
+          } else {
+            responseBox.textContent = "Errore: " + JSON.stringify(data);
+          }
+        });
+    }
+
+    function saveToHistory(q, a) {
+      const history = JSON.parse(localStorage.getItem("aiHistory") || "[]");
+      history.unshift({ q, a, bookmarked: false });
+      localStorage.setItem("aiHistory", JSON.stringify(history.slice(0, 30)));
+      loadHistory();
+    }
+
+    function loadHistory() {
+      const box = document.getElementById("history");
+      const history = JSON.parse(localStorage.getItem("aiHistory") || "[]");
+      box.innerHTML = "";
+      history.forEach((item, i) => {
+        const div = document.createElement("div");
+        div.className = "history-entry";
+        div.innerHTML = `<strong>Q:</strong> ${item.q}<br><strong>A:</strong> ${item.a} 
+          <span class="bookmark" onclick="toggleBookmark(${i})">${item.bookmarked ? "★" : "☆"}</span>`;
+        box.appendChild(div);
+      });
+    }
+
+    function toggleBookmark(index) {
+      const history = JSON.parse(localStorage.getItem("aiHistory") || "[]");
+      history[index].bookmarked = !history[index].bookmarked;
+      localStorage.setItem("aiHistory", JSON.stringify(history));
+      loadHistory();
+    }
+
+    function clearConversation() {
+      localStorage.removeItem("aiHistory");
+      document.getElementById("response").textContent = "";
+      loadHistory();
+    }
+
+    function downloadPDF() {
+      const history = JSON.parse(localStorage.getItem("aiHistory") || "[]");
+      const lines = history.map(item => `Domanda: ${item.q}
+Risposta: ${item.a}
+
+`);
+      const blob = new Blob([lines.join("")], { type: "application/pdf" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "cronologia_ai.pdf";
+      link.click();
+    }
+
+    loadHistory();
+  </script>
+</body>
+</html>
